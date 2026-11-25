@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>241 LIFE 🇬🇦</title>
+<style>
+body{margin:0;overflow:hidden;background:#101820;font-family:Arial;color:white}
+#hud{position:absolute;top:12px;left:12px;background:#071923dd;padding:12px;border-radius:12px}
+#controls{position:absolute;bottom:25px;left:0;right:0;display:flex;justify-content:space-around}
+button{background:#087d68;color:white;border:2px solid #f5d547;border-radius:12px;padding:15px;font-weight:bold}
+#help{position:absolute;bottom:100px;left:12px;font-size:12px}
+</style>
+</head>
+<body>
+<div id="hud">
+<b>🇬🇦 241 LIFE</b><br>
+Libreville - Démo 3D<br>
+<span id="status">À pied</span>
+</div>
+<div id="help">Déplace-toi avec les boutons ou les flèches du clavier.</div>
+<div id="controls">
+<button id="left">◀</button>
+<button id="forward">▲</button>
+<button id="back">▼</button>
+<button id="right">▶</button>
+<button id="action">MONTER</button>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from "three";
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb,40,180);
+
+const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,500);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x52634b,2));
+const sun = new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(30,60,20);
+scene.add(sun);
+
+function box(x,y,z,w,h,d,color){
+ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
+ new THREE.MeshStandardMaterial({color}));
+ o.position.set(x,y,z);scene.add(o);return o;
+}
+
+// Sol et route
+box(0,-0.6,0,220,1,220,0x4b9850);
+box(0,-0.05,0,13,0.2,220,0x30343a);
+for(let z=-100;z<110;z+=12)box(0,0.07,z,0.25,0.05,6,0xffffff);
+
+// Bâtiments de Libreville
+for(let i=0;i<22;i++){
+ let x=(i%2?1:-1)*(13+Math.random()*25);
+ let z=-95+i*9;
+ let h=8+Math.random()*25;
+ box(x,h/2,z,9,h,9,
+ [0xd5d0c2,0xb7c9d1,0xd4b27b,0xeeeeee][i%4]);
+}
+
+// Palmiers
+function palm(x,z){
+ const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.25,.4,5,7),
+ new THREE.MeshStandardMaterial({color:0x80552c}));
+ trunk.position.set(x,2.5,z);scene.add(trunk);
+ for(let i=0;i<6;i++){
+  const leaf=new THREE.Mesh(new THREE.BoxGeometry(.35,.2,4),
+  new THREE.MeshStandardMaterial({color:0x126b32}));
+  leaf.position.set(x,5,z);
+  leaf.rotation.y=i*Math.PI/3;
+  leaf.rotation.x=-.3;scene.add(leaf);
+ }
+}
+for(let z=-90;z<100;z+=13){palm(-9,z);palm(9,z);}
+
+// Lieux importants
+function sign(x,z,label,color){
+ box(x,2,z,12,4,1,color);
+ const canvas=document.createElement("canvas");
+ canvas.width=512;canvas.height=128;
+ const ctx=canvas.getContext("2d");
+ ctx.fillStyle="white";ctx.font="bold 42px Arial";
+ ctx.textAlign="center";ctx.fillText(label,256,78);
+ const tex=new THREE.CanvasTexture(canvas);
+ const m=new THREE.Mesh(new THREE.PlaneGeometry(10,2.5),
+ new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+ m.position.set(x,2,z-.56);scene.add(m);
+}
+sign(-23,-30,"241 CITY MALL",0x087d68);
+sign(23,20,"241 AUTO CENTER",0x174c88);
+sign(-23,65,"VILLA 241",0x9a7626);
+
+// Personnage
+const player=new THREE.Group();
+const body=new THREE.Mesh(new THREE.CapsuleGeometry(.55,.9,4,8),
+new THREE.MeshStandardMaterial({color:0x151c35}));
+body.position.y=1;player.add(body);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.38,16,12),
+new THREE.MeshStandardMaterial({color:0x9b6748}));
+head.position.y=1.9;player.add(head);
+scene.add(player);
+player.position.set(0,0,0);
+
+// Véhicule
+const car=new THREE.Group();
+const base=box(0,0,0,3.2,1,5,0x1760e8);
+const roof=box(0,.85,0,2.4,.8,2.5,0x18283c);
+base.position.y=.7;roof.position.y=1.5;
+car.add(base,roof);
+car.position.set(4,0,8);scene.add(car);
+
+let driving=false;
+let speed=0;
+const keys={};
+const status=document.getElementById("status");
+
+function bind(id,key){
+ const b=document.getElementById(id);
+ b.addEventListener("pointerdown",e=>{e.preventDefault();keys[key]=true});
+ b.addEventListener("pointerup",()=>keys[key]=false);
+ b.addEventListener("pointerleave",()=>keys[key]=false);
+}
+bind("forward","forward");bind("back","back");
+bind("left","left");bind("right","right");
+
+addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+document.getElementById("action").onclick=()=>{
+ if(!driving && player.position.distanceTo(car.position)<8){
+  driving=true;status.textContent="En voiture";
+ }else if(driving){
+  driving=false;player.position.copy(car.position);
+  player.position.x+=3;status.textContent="À pied";
+ }
+};
+
+function animate(){
+ requestAnimationFrame(animate);
+ let forward=keys.forward||keys.w||keys.arrowup;
+ let back=keys.back||keys.s||keys.arrowdown;
+ let left=keys.left||keys.a||keys.arrowleft;
+ let right=keys.right||keys.d||keys.arrowright;
+
+ if(driving){
+  if(forward)speed=Math.min(speed+.015,.35);
+  else if(back)speed=Math.max(speed-.02,-.2);
+  else speed*=.96;
+  if(left)car.rotation.y+=.035;
+  if(right)car.rotation.y-=.035;
+  car.position.x+=Math.sin(car.rotation.y)*speed;
+  car.position.z+=Math.cos(car.rotation.y)*speed;
+ }else{
+  const move=new THREE.Vector3();
+  if(forward)move.z-=1;
+  if(back)move.z+=1;
+  if(left)move.x-=1;
+  if(right)move.x+=1;
+  if(move.length()>0){
+   move.normalize().multiplyScalar(.16);
+   player.position.add(move);
+   player.rotation.y=Math.atan2(move.x,move.z);
+  }
+ }
+
+ const target=driving?car:player;
+ const offset=new THREE.Vector3(0,6,11);
+ offset.applyAxisAngle(new THREE.Vector3(0,1,0),target.rotation.y);
+ camera.position.lerp(target.position.clone().add(offset),.08);
+ camera.lookAt(target.position.x,target.position.y+1,target.position.z);
+ renderer.render(scene,camera);
+}
+animate();
+
+addEventListener("resize",()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
